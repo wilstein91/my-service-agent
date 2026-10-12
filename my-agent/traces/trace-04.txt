@@ -1,0 +1,30 @@
+== 실행 조건 ==
+날짜: 2026-10-12
+클라이언트: Claude Code (CLI)
+MCP 서버: mcp-server-qdrant (uvx로 실행, 설정 파일 .mcp.json)
+설정: QDRANT_URL=":memory:", QDRANT_COLLECTION="policies", EMBEDDER_PROVIDER="fastembed", FASTEMBED_MODEL="BAAI/bge-small-en-v1.5"
+비고: 위 세 환경 변수 이름(QDRANT_COLLECTION 등)은 현재 mcp-server-qdrant 공식 README의 이름(COLLECTION_NAME, EMBEDDING_PROVIDER, EMBEDDING_MODEL)과 다르다.
+      그래서 서버가 기본 컬렉션을 갖지 않고, 두 도구 모두 collection_name 인자를 모델이 채워야 하는 상태였다.
+
+== 연결 확인 ==
+/mcp → qdrant → View tools: qdrant-find, qdrant-store 2개 확인
+
+== 요청 ==
+다음 세 문장을 저장해 줘: "환불은 구매 후 7일 이내에 가능하다." "배송은 영업일 기준 2일이 걸린다." "회원 등급은 매월 1일에 갱신된다." 그리고 "환불 기한이 어떻게 돼?"와 비슷한 문장을 찾아 줘.
+
+== 도구 호출 ==
+Read 1 file, listed 1 directory, called MCP, ran 1 shell command
+"컬렉션 이름은 .mcp.json에 설정된 policies를 씁니다."
+Called qdrant 4 times (qdrant-store 3회 + qdrant-find 1회)
+- qdrant-store: collection_name=policies, metadata를 모델이 스스로 추가 (topic: refund / shipping / membership)
+
+== 반환 결과 (모델 요약) ==
+저장: 컬렉션 policies에 3건
+검색 순위: 1. 환불은 구매 후 7일 이내에 가능하다.  2. 회원 등급은 매월 1일에 갱신된다.  3. 배송은 영업일 기준 2일이 걸린다.
+
+== 관찰 ==
+- 저장 3 + 검색 1 = 4회 호출. qdrant-store는 한 번에 문장 하나만 저장한다.
+- collection_name을 짐작하지 않고 설정 파일(.mcp.json)을 읽어 확인한 뒤 policies를 넣었다.
+- 시키지 않은 metadata(topic)를 모델이 임의로 채웠다. 선택 인자는 모델이 지어낼 수 있는 자리다.
+- 질문의 "기한"과 문장의 "7일 이내"처럼 단어가 달라도 의미가 가까운 문장이 1위로 검색됐다.
+- 모델이 FASTEMBED_MODEL 교체를 제안했지만, 이 변수는 서버가 읽지 않는 이름이라 효과가 없으므로 적용하지 않았다.

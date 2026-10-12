@@ -1,0 +1,29 @@
+== 실행 조건 ==
+날짜: 2026-10-12
+클라이언트: opencode 1.19.0 (opencode run 한 번 실행 방식), 모델: opencode/big-pickle (무료 기본 모델)
+MCP 서버: mcp-server-qdrant (uvx로 실행, 설정 파일 opencode.json)
+설정: trace-04와 같은 환경 변수 (QDRANT_URL=":memory:", QDRANT_COLLECTION="policies", ...)
+연결 확인: opencode mcp list → "✓ qdrant connected"
+실행 명령: opencode run '다음 세 문장을 저장해 줘: "환불은 구매 후 7일 이내에 가능하다." ... 비슷한 문장을 찾아 줘.'
+
+== 도구 호출 (원문) ==
+⚙ qdrant_qdrant-store {"information":"환불은 \"구매 후 7일 이내에\" 가능하다.","collection_name":"sentences"}
+⚙ qdrant_qdrant-store {"information":"배송은 \"영업일 기준 2일이\" 걸린다.","collection_name":"sentences"}
+⚙ qdrant_qdrant-store {"information":"회원 등급은 매월 1일에 \"갱신된다.\"","collection_name":"sentences"}
+⚙ qdrant_qdrant-find {"collection_name":"sentences","query":"환불 기한이 어떻게 돼?"}
+
+== 최종 답 (원문) ==
+저장 완료, 그리고 검색 결과입니다.
+저장한 문장:
+1. 환불은 "구매 후 7일 이내에" 가능하다.
+2. 배송은 "영업일 기준 2일이" 걸린다.
+3. 회원 등급은 매월 1일에 "갱신된다."
+`환불 기한이 어떻게 돼?`와 가장 비슷한 문장은 **"환불은 구매 후 7일 이내에 가능하다."** 입니다 (1순위, 환불/기한이 겹침).
+
+== 관찰 ==
+- 같은 MCP 서버를 다른 클라이언트에 붙여도 도구 2개가 그대로 동작했다(저장 3 + 검색 1).
+- collection_name을 설정에서 확인하지 않고 "sentences"로 지어냈다. 사전 점검 실행에서는 "customer_policy"로 지어냈다.
+  → 실행마다 다른 저장 공간을 쓰게 되어, 나중에 저장한 정보를 찾지 못하는 실패로 이어질 수 있다. (trace-02의 "부산 3번 → BUSAN-02" 짐작 대입과 같은 유형)
+  → 보완: 모델이 채울 빈칸을 남기지 않는다. 공식 변수 COLLECTION_NAME으로 기본 컬렉션을 고정하면 collection_name 인자 자체가 도구 스키마에서 사라진다(사전 점검에서 확인).
+- 최종 답의 근거 설명 "환불/기한이 겹침"은 사실과 다르다. 저장 문장에 "기한"이라는 단어는 없다. 검색 결과는 맞지만 이유를 지어서 설명했다(결과 해석 실패의 작은 예).
+- 저장 문장에 들어간 이상한 따옴표는 모델 문제가 아니다. PowerShell 5.1이 인자 안의 큰따옴표를 잘못 넘긴 실행 환경 문제다.
